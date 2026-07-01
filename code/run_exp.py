@@ -102,7 +102,7 @@ if __name__ == "__main__":
         n_train = 550
         n_test = 100
     else:
-        n_train = 300
+        n_train = 20
         n_test = 0
 
     n_total = n_train + n_test
@@ -365,9 +365,45 @@ if __name__ == "__main__":
                 t_resp = np.nan
                 state_clock.reset()
                 trial += 1
+
+                # when experiment finishes, calculate accuracy for that session
+                # and display on screen
                 if trial >= n_total:
+                    if EEG_ENABLED:
+                        df = pd.read_csv(full_path)
+                    else:
+                        session_name = f"sub_{subject}_sess_{session_num:03d}_part_"
+                        join_files = sorted(
+                            os.path.join(dir_data, fn)
+                            for fn in os.listdir(dir_data)
+                            if fn.startswith(session_name) and fn.endswith(".csv")
+                        )
+                        df = pd.concat([pd.read_csv(f) for f in join_files], ignore_index=True)
+
+                    train_df = df[df["phase"] == "train"]
+                    accuracy = 100 * (train_df["fb"] == "Correct").mean()
+
+                    # TODO: finalise end of experiment messages and implement
+
+                    # if acc < 80 and session_num >= 3 -> "100% is possible on
+                    # this task! Please reach out to the research team" 
+
+                    # if acc < 90 and session_num >= 5 -> "100% is possible on
+                    # this task! Keep trying!"
+
+                    # if acc < 95 and acc > 90 and session_num >= 11 -> "100% is
+                    # possible on this task! You're getting closer, keep going!"
+
+                    # if acc < 100 and acc > 95 -> "You're almost there!"
+
+                    finished_text.text = (
+                        "You finished! Thank you for participating!\n\n"
+                        f"Training accuracy: {accuracy:.1f}%"
+                    )
+
                     state_current = "state_finished"
                     state_entry = True
+
                 else:
                     sf_cycles_per_pix, ori_deg = stim_xy_to_sf_ori_deg(
                         ds['x'].iloc[trial],
