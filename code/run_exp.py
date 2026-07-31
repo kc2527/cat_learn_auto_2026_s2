@@ -94,6 +94,47 @@ NEW_SESSION_COOLDOWN = timedelta(hours=8)
 RESPONSE_LIMIT_MS = 1500
 FIRST_EEG_RESPONSE_LIMIT_MS = 5000
 FIRST_EEG_SLOW_TRIALS = 500
+N_PROBE = 50
+
+# Keys are EEG session numbers. Values are the number of training
+# trials presented before the probe block.
+EEG_PROBE_LOCATIONS = {
+    1: 600,
+    4: 550,
+    5: 400,
+}
+
+# Total number of trials in each EEG session, including probe trials.
+EEG_SESSION_TOTALS = {
+    1: 650,
+    2: 600,
+    3: 600,
+    4: 650,
+    5: 650,
+}
+
+# Keys are home session numbers. Values are the number of training
+# trials presented before the probe block.
+HOME_PROBE_LOCATIONS = {
+    5: 100,
+    9: 250,
+}
+
+# Total number of trials in each home session, including probe trials.
+HOME_SESSION_TOTALS = {
+    1: 400,
+    2: 400,
+    3: 400,
+    4: 400,
+    5: 450,
+    6: 400,
+    7: 400,
+    8: 400,
+    9: 450,
+    10: 400,
+    11: 400,
+    12: 400,
+}
 
 # ----------------------------------------------------------------------------------
 
@@ -108,12 +149,12 @@ if __name__ == "__main__":
     # --------------------------- Experiment parameters ---------------------------
     if EEG_ENABLED:
         n_train = 600
-        n_test = 50
+        probe_locations = EEG_PROBE_LOCATIONS
+        session_totals = EEG_SESSION_TOTALS
     else:
         n_train = 400
-        n_test = 0
-
-    n_total = n_train + n_test
+        probe_locations = HOME_PROBE_LOCATIONS
+        session_totals = HOME_SESSION_TOTALS
 
     # --------------------------- Display / geometry -------------------------------
 
@@ -198,12 +239,20 @@ if __name__ == "__main__":
     session_info = resolve_session(
         dir_data,
         subject,
-        n_total,
+        n_train,
         resume_window=RESUME_WINDOW,
         new_session_cooldown=NEW_SESSION_COOLDOWN,
         study_tag=STUDY_TAG,
+        session_totals=session_totals,
     )
     session_num = session_info["session_num"]
+    probe_location = probe_locations.get(session_num)
+    if probe_location is None:
+        n_test = 0
+    else:
+        n_test = N_PROBE
+    n_total = n_train + n_test
+
     part_num = session_info["part_num"]
     today_key = session_info["today_key"]
     f_name = session_info["f_name"]
@@ -239,7 +288,16 @@ if __name__ == "__main__":
     ds_test = ds_test.iloc[:n_test, :]
     ds_test["phase"] = "test"
 
-    ds = pd.concat([ds_train, ds_test]).reset_index(drop=True)
+    if probe_location is None:
+        ds = ds_train.reset_index(drop=True)
+    else:
+        train_before_probe = ds_train.iloc[:probe_location]
+        train_after_probe = ds_train.iloc[probe_location:]
+        ds = pd.concat([
+            train_before_probe,
+            ds_test,
+            train_after_probe,
+        ]).reset_index(drop=True)
 
     # NOTE: Uncomment to visualize stimulus space scatter
     # import matplotlib.pyplot as plt

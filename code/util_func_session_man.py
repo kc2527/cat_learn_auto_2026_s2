@@ -37,9 +37,15 @@ def resolve_session(dir_data,
                     new_session_cooldown=timedelta(hours=8),
                     now=None,
                     task_tag=None,
-                    study_tag=None):
+                    study_tag=None,
+                    session_totals=None):
     now = datetime.now() if now is None else now
     today = now.date()
+
+    def expected_total(session_num):
+        if session_totals is None:
+            return n_total
+        return session_totals.get(session_num, n_total)
 
     file_prefix = f"sub_{subject}"
     if study_tag is not None:
@@ -97,7 +103,7 @@ def resolve_session(dir_data,
             "last_ts": latest_part["end_ts"],
             "max_part": int(max(p["part_num"] for p in parts_sorted)),
             "session_day": first_part["start_ts"].date(),
-            "is_complete": bool(n_done_session >= n_total),
+            "is_complete": bool(n_done_session >= expected_total(s_num)),
         })
     sessions.sort(key=lambda s: s["last_ts"], reverse=True)
 
@@ -135,7 +141,7 @@ def resolve_session(dir_data,
         today_key = now.strftime("%Y_%m_%d")
         f_name = build_filename(session_num, part_num, today_key)
         full_path = os.path.join(dir_data, f_name)
-        remaining = n_total - n_done
+        remaining = expected_total(session_num) - n_done
         print(
             f"Resuming your last incomplete session "
             f"(last saved {recent_incomplete['last_ts']:%Y-%m-%d %H:%M})."
@@ -173,7 +179,7 @@ def resolve_session(dir_data,
         full_path = os.path.join(dir_data, f_name)
         n_done = 0
 
-    if n_done >= n_total:
+    if n_done >= expected_total(session_num):
         print(f"Session is already complete ({n_done} trials). Aborting.")
         sys.exit()
 
