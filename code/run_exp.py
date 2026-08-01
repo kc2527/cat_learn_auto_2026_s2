@@ -744,7 +744,7 @@ if __name__ == "__main__":
 
             grating.draw()
             fb_ring.draw()
-            if fb == "Too slow":
+            if fb == "Too slow" and EEG_ENABLED and session_num == 1:
                 too_slow_text.draw()
 
             if time_state > 1000:
